@@ -46,17 +46,16 @@ Optimization with CVXPY is run with the MOSEK solver. The license is available f
 
 ### Structure
 
-This repository contains three folders: 
-1. Data
-2. Figures 
-3. Hourly_Prices
-4. Parameters 
+This repository contains four folders: 
+1. Hourly_Prices
+2. Parameters 
+3. Vehicle Data
 
 PG&E hourly dynamic prices for each of the four circuits tested are located in the Hourly_Prices Folder
 
 The Parameters folder contains the configuration file for each circuit with and without a battery aging cost.
  
-The Figures folder contains notebooks to generate the figures contained in the paper submission. 
+Vehicle Data contains the raw sample vehicle data. 
 
 The main repository contains have the three main model classes: 
 1. charging.py
@@ -67,13 +66,13 @@ The run_simulation.ipynb file includes code cells to to create the baseline data
 
 ### Data
 
-Raw EV data for this simulation are located at [insert Mendeley link]. 
+In this repository, a sample dataset is provided to run the code; the values are generated and not based on real EV traces. The full raw EV dataset used in the paper submission is located at https://data.mendeley.com/datasets/dszk8rzfjx/1. To run the code with the full dataset, change the filename of the input data file in the first code block in run_simulation.ipynb. Also, update "min_date_data" and "max_date_data" in the params JSON files to align with the dates present in the input data (this can be multiple months if the input data files are concatenated).
 
 ### Running Instructions
 
-Run all code cells in run_simulation.ipynb. 
+Run all code cells in run_simulation.ipynb. Creating the baseline data and clustering only need to be run once.
 
 Note that the Mosek check is important to ensure correct results. (The optimization code will not throw an error if the Mosek file is missing, so you should confirm with the code block check instead.)
 
-To run the figure notebooks, which are labeled as they appear in the paper, ensure the results are stored in the Results folder under the Figures folder.
+To run the figure notebooks, which are labeled as they appear in the paper, ensure the results are stored in the Results folder, which is created upon running the optimization simulation.
 
