@@ -30,10 +30,11 @@ This code is licensed under the CC BY-NC-SA 4.0 license. The legal code can be f
 Windows PC instructions:
 Instructions are provided to create a virtual environment created with .venv in Visual Studio Code on a Windows PC.
 
-1) Download Python 3.10 at https://www.python.org/downloads/
+1) Download Python 3.10 or 3.11 at https://www.python.org/downloads/
 2) Download VS Code with build tools at https://code.visualstudio.com/download (works for Windows or Mac)
 3) Install the Python and Jupyter extensions on VS Code.
 4) To create a new virtual environment on VS Code, press View -> Command Palette and search for Python:Create New Environment. Click on Venv for the .venv virtual environment. 
+5) Activate the virtual environment by running this command in Windows cmd: 'your_path\your_venv_name\Scripts\activate.bat'
 5) Download the correct package versions by running the command below in the terminal:
 
 pip install -r requirements.txt

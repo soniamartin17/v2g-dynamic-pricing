@@ -127,29 +127,31 @@ def create_feature_array(min_date, max_date, feature_type, path):
         #loop through each vinid in the dataset
         for vin in access_data.keys().values[2:]:
             access_array = np.array(())
-            #loop through each week
-            for monday in mondays:
-                monday_midnight = datetime.datetime.combine(monday, datetime.time.min)
-                idx = np.where(uncontrolled_data.datetime == monday_midnight)[0][0]
-                #check if there is at least 20 kwh of charging demand during that week:
-                if np.sum(uncontrolled_data.iloc[idx:idx+24*7*60,int(vin)+1], axis=0)>20*60:
-                    vinids.append(int(vin))
-                    #stack the days to make the access array
-                    for day in range(5):
-                        idx = idx+ 24*60
-                        if access_array.shape[0] == 0:
-                            access_array = access_data.iloc[idx:idx+24*60,int(vin)+1].values
-                        else:
-                            access_array = np.vstack((access_array, access_data.iloc[idx:idx+24*60,int(vin)+1].values))
+            if int(vin)<len(access_data.keys().values[2:])-1:
+                #loop through each week
+                for monday in mondays:
+                    monday_midnight = datetime.datetime.combine(monday, datetime.time.min)
+                    idx = np.where(uncontrolled_data.datetime == monday_midnight)[0][0]
+                    #check if there is at least 20 kwh of charging demand during that week:
 
-            #take the mean of the access array 
-            if feat_array.shape[0] == 0:
-                feat_array = np.mean(access_array, axis=0)
-            else:
-                if access_array.shape[0] > 0:
-                    feat_array = np.vstack((feat_array, np.mean(access_array, axis=0)))
+                    if np.sum(uncontrolled_data.iloc[idx:idx+24*7*60,int(vin)+1], axis=0)>20*60:
+                        vinids.append(int(vin))
+                        #stack the days to make the access array
+                        for day in range(5):
+                            idx = idx+ 24*60
+                            if access_array.shape[0] == 0:
+                                access_array = access_data.iloc[idx:idx+24*60,int(vin)+1].values
+                            else:
+                                access_array = np.vstack((access_array, access_data.iloc[idx:idx+24*60,int(vin)+1].values))
+
+                #take the mean of the access array 
+                if feat_array.shape[0] == 0:
+                    feat_array = np.mean(access_array, axis=0)
                 else:
-                    pass
+                    if access_array.shape[0] > 0:
+                        feat_array = np.vstack((feat_array, np.mean(access_array, axis=0)))
+                    else:
+                        pass
 
         vinids = np.sort(np.unique(np.array(vinids)))
         return feat_array, vinids
@@ -159,7 +161,7 @@ def create_feature_array(min_date, max_date, feature_type, path):
         return None, None    
 
 
-def run_adaptive_clustering(feat_array):
+def run_adaptive_clustering(feat_array, max_clusters):
     """
     Clusters data using the adaptive k-means algorithm and saves labels and cluster centers.
 
@@ -174,7 +176,7 @@ def run_adaptive_clustering(feat_array):
 
     #set clustering parameters
     min_k = 4
-    max_k = 400
+    max_k = max_clusters
     theta=.1
 
     #initialize clustering algorithm
