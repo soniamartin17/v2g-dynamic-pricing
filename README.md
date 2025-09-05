@@ -1,7 +1,6 @@
 # V2G Economic Feasibility under Dynamic Pricing and Demand Response Programs
 
-[insert DOI]
-
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17065553.svg)](https://doi.org/10.5281/zenodo.17065553)
 
 ## Abstract
  
