@@ -17,7 +17,7 @@ Research team: Sonia Martin (Stanford), William A. Paxton (Volkswagen), and Ram 
 
 This research project was funded by Volkswagen Group of America.
 
-This code accompanies a paper submitted to Joule entitled "Residential Vehicle-to-Grid Economics under Dynamic Pricing: The Role of Price Variation and Real-World Charging Behavior".
+This code accompanies a paper submitted to Advances in Applied Energy entitled "Residential Vehicle-to-Grid Economics under Dynamic Pricing: The Role of Price Variation and Real-World Charging Behavior".
 
 ## License 
 
