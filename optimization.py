@@ -303,10 +303,11 @@ class v2gOptimization(object):
                 cost_v2g_everywhere[week_price] = np.nan
 
         #save the costs
-        pd.DataFrame(cost_uncontrolled).to_csv(self.results_path + 'Results/'+self.region + '/batt_aging_'+str(self.batt_cost) + '/elrp_'+str(self.elrp_seed)+'_cost_uncontrolled_'+self.min_date_price + '_to_' + self.max_date_price+'_vin_'+str(vin)+'.csv')
-        pd.DataFrame(cost_managed).to_csv(self.results_path + 'Results/'+self.region+ '/batt_aging_'+ str(self.batt_cost) + '/elrp_'+str(self.elrp_seed)+'_cost_managed_'+self.min_date_price + '_to_' + self.max_date_price +'_vin_'+str(vin)+'.csv')
-        pd.DataFrame(cost_v2g_home).to_csv(self.results_path + 'Results/'+self.region+ '/batt_aging_'+str(self.batt_cost)  + '/elrp_'+str(self.elrp_seed)+'_cost_v2g_home_'+self.min_date_price + '_to_' + self.max_date_price +'_vin_'+str(vin)+'.csv')
-        pd.DataFrame(cost_v2g_everywhere).to_csv(self.results_path + 'Results/'+self.region+ '/batt_aging_'+str(self.batt_cost)  + '/elrp_'+str(self.elrp_seed)+'_cost_v2g_everywhere_'+self.min_date_price + '_to_' + self.max_date_price +'_vin_'+str(vin)+'.csv')
+        os.makedirs(self.results_path + '/' + self.region+ '/batt_aging_'+str(self.batt_cost)  + '/', exist_ok=True)
+        pd.DataFrame(cost_uncontrolled).to_csv(self.results_path + '/' + self.region + '/batt_aging_'+str(self.batt_cost) + '/elrp_'+str(self.elrp_seed)+'_cost_uncontrolled_'+self.min_date_price + '_to_' + self.max_date_price+'_vin_'+str(vin)+'.csv')
+        pd.DataFrame(cost_managed).to_csv(self.results_path + '/' + self.region + '/batt_aging_'+ str(self.batt_cost) + '/elrp_'+str(self.elrp_seed)+'_cost_managed_'+self.min_date_price + '_to_' + self.max_date_price +'_vin_'+str(vin)+'.csv')
+        pd.DataFrame(cost_v2g_home).to_csv(self.results_path + '/' + self.region + '/batt_aging_'+str(self.batt_cost)  + '/elrp_'+str(self.elrp_seed)+'_cost_v2g_home_'+self.min_date_price + '_to_' + self.max_date_price +'_vin_'+str(vin)+'.csv')
+        pd.DataFrame(cost_v2g_everywhere).to_csv(self.results_path + '/' + self.region + '/batt_aging_'+str(self.batt_cost)  + '/elrp_'+str(self.elrp_seed)+'_cost_v2g_everywhere_'+self.min_date_price + '_to_' + self.max_date_price +'_vin_'+str(vin)+'.csv')
         return
     
     def call_optimization_day_ahead(self, vin):
@@ -473,7 +474,8 @@ class v2gOptimization(object):
                     self.soc_init_v2g_home.value = 0.5
                 
         #save the costs
-        pd.DataFrame(cost_v2g_home).to_csv(self.results_path + 'Results/'+self.region+ '/batt_aging_'+str(self.batt_cost)  + '/elrp_'+str(self.elrp_seed)+'_cost_v2g_home_'+self.min_date_price + '_to_' + self.max_date_price +'_vin_'+str(vin)+'day_ahead_' + str(random_noise) + 'random.csv')
+        os.makedirs(self.results_path + '/' + self.region+ '/batt_aging_'+str(self.batt_cost)  + '/', exist_ok=True)
+        pd.DataFrame(cost_v2g_home).to_csv(self.results_path +'/' + self.region+ '/batt_aging_'+str(self.batt_cost)  + '/elrp_'+str(self.elrp_seed)+'_cost_v2g_home_'+self.min_date_price + '_to_' + self.max_date_price +'_vin_'+str(vin)+'day_ahead_' + str(random_noise) + 'random.csv')
         return
 
     def baseline_cost(self, data, price):

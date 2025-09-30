@@ -1,0 +1,5 @@
+__pycache__/
+.venv/
+.venv_v2g
+Data/
+Results/
