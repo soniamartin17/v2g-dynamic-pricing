@@ -147,8 +147,11 @@ class v2gOptimization(object):
 
         self.calendar_aging_coeffs()
         self.run_optimization_managed()
+        
         self.run_optimization_v2g_home()
         self.run_optimization_v2g_everywhere()
+        self.run_optimization_v2g_home_limited()
+        self.run_optimization_v1g_dynamic()
         
         data_uncontrolled = pd.read_csv(self.data_path +'/all_uncontrolled_demand_individualdrivers_'+self.min_date_vehicle + '_to_' + self.max_date_vehicle + '.csv')
         data_uncontrolled.datetime = pd.to_datetime(data_uncontrolled.datetime)
@@ -161,6 +164,15 @@ class v2gOptimization(object):
         cost_managed = np.full((num_weeks,), np.nan)
         cost_v2g_home = np.full((num_weeks,), np.nan)
         cost_v2g_everywhere = np.full((num_weeks,), np.nan) 
+        cost_v2g_limited = np.full((num_weeks,), np.nan)
+        cost_v1g_dynamic = np.full((num_weeks,), np.nan)
+
+        calendar_uncontrolled = np.full((num_weeks,), np.nan)
+        cyclic_uncontrolled = np.full((num_weeks,), np.nan)
+        calendar_managed = np.full((num_weeks,), np.nan)
+        cyclic_managed = np.full((num_weeks,), np.nan)
+        calendar_v2g = np.full((num_weeks,), np.nan)
+        cyclic_v2g = np.full((num_weeks,), np.nan)
 
         print('VIN:', vin)
         #find which weeks have data for this particular vin and create week num vector
@@ -268,6 +280,9 @@ class v2gOptimization(object):
             batt_cost_u = (cyclic_u.value + calendar_u) * (self.batt_cost * self.battcap) / self.eol
             cost_uncontrolled[week_price] = self.baseline_cost(self.uncontrolled_power_away.value, self.public_chg_price_week.value) + self.baseline_cost(self.uncontrolled_power_home.value, self.tou_price_week.value)  + np.sum(batt_cost_u.value)
 
+            calendar_uncontrolled[week_price] = np.sum(calendar_u.value)
+            cyclic_uncontrolled[week_price] = np.sum(cyclic_u.value)
+             
             data_week_binned_max_kW[data_week_binned_max_kW.isna()] = 0
 
             self.data_week_driving_soc_change.value = np.array(data_week_driving_soc_change)
@@ -285,6 +300,8 @@ class v2gOptimization(object):
             
             try:
                 cost_managed[week_price] = self.charging_cost_managed.value  + np.sum(self.batt_deg_cost_managed.value) 
+                calendar_managed[week_price] = np.sum(self.calendar_managed.value)
+                cyclic_managed[week_price] = np.sum(self.cyclic_managed.value)
             except:
                 cost_managed[week_price] = np.nan
             
@@ -292,6 +309,8 @@ class v2gOptimization(object):
             
             try:
                 cost_v2g_home[week_price] = self.obj_v2g.value #- self.batt_deg_cost_v2g.value
+                calendar_v2g[week_price] = np.sum(self.calendar_v2g.value)
+                cyclic_v2g[week_price] = np.sum(self.cyclic_v2g.value)
             except:
                 cost_v2g_home[week_price] = np.nan
 
@@ -302,12 +321,46 @@ class v2gOptimization(object):
             except:
                 cost_v2g_everywhere[week_price] = np.nan
 
+            self.prob_v2g_limited.solve(solver='MOSEK', ignore_dpp=True, verbose=False)
+            
+            try:
+                cost_v2g_limited[week_price] = self.charging_costs_v2g_limited.value  + np.sum(self.batt_deg_cost_v2g_limited.value)
+            except:
+                cost_v2g_limited[week_price] = np.nan
+
+            self.prob_v1g_dynamic.solve(solver='MOSEK', ignore_dpp=True, verbose=False)
+            
+            try:
+                cost_v1g_dynamic[week_price] = self.obj_v1g.value - np.sum(self.batt_deg_cost_v1g.value)
+            except:
+                cost_v1g_dynamic[week_price] = np.nan
+            
+            power_v2g = self.charging_schedule_v2g.value - self.grid_discharge_v2g.value
+            power_v2g_everywhere = self.charging_schedule_v2g_everywhere.value - self.grid_discharge_v2g_everywhere.value
+            power_v2g_limited = self.charging_schedule_home_v2g_limited.value - self.grid_discharge_v2g_limited.value
+            #save the power profiles if necessary
+            #np.savetxt(self.results_path + 'Results/'+self.region + '/batt_aging_'+str(self.batt_cost) + '/elrp_'+str(self.elrp_seed)+'_uncontrolled_power_driver_' + str(driver) + 'week_'+str(week_price) + '.csv', power_u)
+            #np.savetxt(self.results_path + 'Results/'+self.region + '/batt_aging_'+str(self.batt_cost) + '/elrp_'+str(self.elrp_seed)+'_power_managed_driver_' + str(driver) + 'week_' + str(week_price) +'.csv', self.charging_schedule_managed.value)
+            #np.savetxt(self.results_path + 'Results/'+self.region + '/batt_aging_'+str(self.batt_cost) + '/elrp_'+str(self.elrp_seed)+'_power_v2g_driver_' + str(driver) + 'week_'+str(week_price) +'.csv', power_v2g)
+            #np.savetxt(self.results_path + 'Results/'+self.region + '/batt_aging_'+str(self.batt_cost) + '/elrp_'+str(self.elrp_seed)+'_power_v2g_everywhere_driver_' + str(driver) + 'week_'+str(week_price) +'.csv', power_v2g_everywhere)
+            #np.savetxt(self.results_path + 'Results/'+self.region + '/batt_aging_'+str(self.batt_cost) + '/elrp_'+str(self.elrp_seed)+'_power_v2g_limited_driver_' + str(driver) + 'week_'+str(week_price) +'.csv', power_v2g_limited)
+            #np.savetxt(self.results_path + 'Results/'+self.region + '/batt_aging_'+str(self.batt_cost) + '/elrp_'+str(self.elrp_seed)+'_power_v1g_dynamic_driver_' + str(driver) + 'week_'+str(week_price) +'.csv', self.charging_schedule_home_v1g.value)
+            
+
         #save the costs
-        os.makedirs(self.results_path + '/' + self.region+ '/batt_aging_'+str(self.batt_cost)  + '/', exist_ok=True)
-        pd.DataFrame(cost_uncontrolled).to_csv(self.results_path + '/' + self.region + '/batt_aging_'+str(self.batt_cost) + '/elrp_'+str(self.elrp_seed)+'_cost_uncontrolled_'+self.min_date_price + '_to_' + self.max_date_price+'_vin_'+str(vin)+'.csv')
-        pd.DataFrame(cost_managed).to_csv(self.results_path + '/' + self.region + '/batt_aging_'+ str(self.batt_cost) + '/elrp_'+str(self.elrp_seed)+'_cost_managed_'+self.min_date_price + '_to_' + self.max_date_price +'_vin_'+str(vin)+'.csv')
-        pd.DataFrame(cost_v2g_home).to_csv(self.results_path + '/' + self.region + '/batt_aging_'+str(self.batt_cost)  + '/elrp_'+str(self.elrp_seed)+'_cost_v2g_home_'+self.min_date_price + '_to_' + self.max_date_price +'_vin_'+str(vin)+'.csv')
-        pd.DataFrame(cost_v2g_everywhere).to_csv(self.results_path + '/' + self.region + '/batt_aging_'+str(self.batt_cost)  + '/elrp_'+str(self.elrp_seed)+'_cost_v2g_everywhere_'+self.min_date_price + '_to_' + self.max_date_price +'_vin_'+str(vin)+'.csv')
+        pd.DataFrame(cost_uncontrolled).to_csv(self.results_path + 'Results/'+self.region + '/batt_aging_'+str(self.batt_cost) + '/elrp_'+str(self.elrp_seed)+'_cost_uncontrolled_'+self.min_date_price + '_to_' + self.max_date_price+'_vin_'+str(vin)+'.csv')
+        pd.DataFrame(cost_managed).to_csv(self.results_path + 'Results/'+self.region+ '/batt_aging_'+ str(self.batt_cost) + '/elrp_'+str(self.elrp_seed)+'_cost_no_v2g_'+self.min_date_price + '_to_' + self.max_date_price +'_vin_'+str(vin)+'.csv')
+        pd.DataFrame(cost_v2g_home).to_csv(self.results_path + 'Results/'+self.region+ '/batt_aging_'+str(self.batt_cost)  + '/elrp_'+str(self.elrp_seed)+'_cost_v2g_home_'+self.min_date_price + '_to_' + self.max_date_price +'_vin_'+str(vin)+'.csv')
+        pd.DataFrame(cost_v2g_everywhere).to_csv(self.results_path + 'Results/'+self.region+ '/batt_aging_'+str(self.batt_cost)  + '/elrp_'+str(self.elrp_seed)+'_cost_v2g_everywhere_'+self.min_date_price + '_to_' + self.max_date_price +'_vin_'+str(vin)+'.csv')
+        pd.DataFrame(cost_v2g_limited).to_csv(self.results_path + 'Results/'+self.region+ '/batt_aging_'+str(self.batt_cost)  + '/elrp_'+str(self.elrp_seed)+'_cost_v2g_home_limited_'+self.min_date_price + '_to_' + self.max_date_price +'_vin_'+str(vin)+'.csv')
+        pd.DataFrame(cost_v1g_dynamic).to_csv(self.results_path + 'Results/'+self.region+ '/batt_aging_'+str(self.batt_cost)  + '/elrp_'+str(self.elrp_seed)+'_cost_v1g_dynamic_'+self.min_date_price + '_to_' + self.max_date_price +'_vin_'+str(vin)+'.csv')
+
+        pd.DataFrame(calendar_uncontrolled).to_csv(self.results_path + 'Results/'+self.region+ '/batt_aging_'+str(self.batt_cost)  + '/elrp_'+str(self.elrp_seed)+'_calendar_aging_uncontrolled_'+self.min_date_price + '_to_' + self.max_date_price +'_vin_'+str(vin)+'.csv')
+        # pd.DataFrame(cyclic_uncontrolled).to_csv(self.results_path + 'Results/'+self.region+ '/batt_aging_'+str(self.batt_cost)  + '/elrp_'+str(self.elrp_seed)+'_cyclic_aging_uncontrolled_'+self.min_date_price + '_to_' + self.max_date_price +'_vin_'+str(vin)+'.csv')
+        # pd.DataFrame(calendar_managed).to_csv(self.results_path + 'Results/'+self.region+ '/batt_aging_'+str(self.batt_cost)  + '/elrp_'+str(self.elrp_seed)+'_calendar_aging_managed_'+self.min_date_price + '_to_' + self.max_date_price +'_vin_'+str(vin)+'.csv')
+        # pd.DataFrame(cyclic_managed).to_csv(self.results_path + 'Results/'+self.region+ '/batt_aging_'+str(self.batt_cost)  + '/elrp_'+str(self.elrp_seed)+'_cyclic_aging_managed_'+self.min_date_price + '_to_' + self.max_date_price +'_vin_'+str(vin)+'.csv')    
+        # pd.DataFrame(calendar_v2g).to_csv(self.results_path + 'Results/'+self.region+ '/batt_aging_'+str(self.batt_cost)  + '/elrp_'+str(self.elrp_seed)+'_calendar_aging_v2g_'+self.min_date_price + '_to_' + self.max_date_price +'_vin_'+str(vin)+'.csv')
+        # pd.DataFrame(cyclic_v2g).to_csv(self.results_path + 'Results/'+self.region+ '/batt_aging_'+str(self.batt_cost)  + '/elrp_'+str(self.elrp_seed)+'_cyclic_aging_v2g_'+self.min_date_price + '_to_' + self.max_date_price +'_vin_'+str(vin)+'.csv')
         return
     
     def call_optimization_day_ahead(self, vin):
@@ -474,8 +527,7 @@ class v2gOptimization(object):
                     self.soc_init_v2g_home.value = 0.5
                 
         #save the costs
-        os.makedirs(self.results_path + '/' + self.region+ '/batt_aging_'+str(self.batt_cost)  + '/', exist_ok=True)
-        pd.DataFrame(cost_v2g_home).to_csv(self.results_path +'/' + self.region+ '/batt_aging_'+str(self.batt_cost)  + '/elrp_'+str(self.elrp_seed)+'_cost_v2g_home_'+self.min_date_price + '_to_' + self.max_date_price +'_vin_'+str(vin)+'day_ahead_' + str(random_noise) + 'random.csv')
+        pd.DataFrame(cost_v2g_home).to_csv(self.results_path + 'Results/'+self.region+ '/batt_aging_'+str(self.batt_cost)  + '/elrp_'+str(self.elrp_seed)+'_cost_v2g_home_'+self.min_date_price + '_to_' + self.max_date_price +'_vin_'+str(vin)+'day_ahead_' + str(random_noise) + 'random.csv')
         return
 
     def baseline_cost(self, data, price):
@@ -614,7 +666,6 @@ class v2gOptimization(object):
         return
     
 
-
     def run_optimization_v2g_everywhere(self, soc_specified = False):
         '''Run optimization for V2G allowed everywhere'''
         
@@ -665,6 +716,98 @@ class v2gOptimization(object):
         
         #set up the problem
         self.prob_v2g_everywhere = cp.Problem(cp.Minimize(self.obj_v2g_everywhere), constraints)
+        
+        return
+    
+    def run_optimization_v1g_dynamic(self):
+        '''Run optimization for one week for V1G subject to dynamic pricing'''
+        
+        self.charging_schedule_home_v1g = cp.Variable(self.num_timesteps,)
+        self.charging_schedule_away_v1g = cp.Variable(self.num_timesteps,)
+        self.charging_schedule_v1g = cp.Variable(self.num_timesteps,)
+        
+        self.soc_v1g = cp.Variable(self.num_timesteps+1,)
+        self.power_v1g = (self.soc_v1g[:-1] - self.soc_v1g[1:]) / 100 *self.battcap / self.timestep_opt
+        self.cyclic_v1g, self.calendar_v1g, self.batt_deg_cost_v1g = self.batt_cost_vec(self.power_v1g, self.soc_v1g)
+        
+        
+        if self.elrp:
+            charging_cost_home = (self.charging_schedule_home_v1g/self.eta  - self.uncontrolled_power_home / self.eta) @ (self.price_week_elrp * self.timestep_opt)
+            charging_cost_home += (self.uncontrolled_power_home / self.eta) @ (self.tou_price_week * self.timestep_opt)
+        else: 
+            charging_cost_home = ((self.charging_schedule_home_v1g- - self.uncontrolled_power_home) / self.eta) @ (self.price_week * self.timestep_opt)
+            charging_cost_home += (self.uncontrolled_power_home / self.eta) @ (self.tou_price_week * self.timestep_opt)
+        charging_cost_away = (self.charging_schedule_away_v1g / self.eta) @ (self.public_chg_price_week * self.timestep_opt)
+
+        self.charging_schedule_v1g = self.charging_schedule_home_v1g + self.charging_schedule_away_v1g
+        self.obj_v1g = charging_cost_home + charging_cost_away + cp.sum(self.batt_deg_cost_v1g)
+            
+        #define constraints
+        constraints = []
+        constraints += [self.charging_schedule_home_v1g >= 0]
+        constraints += [self.charging_schedule_v1g == self.charging_schedule_home_v1g + self.charging_schedule_away_v1g]
+        constraints += [self.charging_schedule_away_v1g >= 0]
+        constraints += [self.charging_schedule_v1g >= 0]
+        constraints += [self.soc_v1g[0]==self.soc_v1g[-1], self.soc_v1g >= 0, self.soc_v1g <= 100]
+        constraints += [self.soc_v1g[1:] == self.soc_v1g[:-1] + 100*(1/self.battcap)*self.timestep_opt*self.charging_schedule_v1g  + self.data_week_driving_soc_change]
+        constraints += [self.charging_schedule_home_v1g <= self.home * self.v2g_max / self.eta]  
+        constraints += [self.charging_schedule_away_v1g <= (self.max_power_away)/self.eta] #accounting for inefficiency 
+
+        self.prob_v1g_dynamic = cp.Problem(cp.Minimize(self.obj_v1g), constraints)
+        
+        return
+    
+
+    def run_optimization_v2g_home_limited(self):
+        '''Run optimization with V2G allowed at home only, with penalty for charging speed'''
+        
+        #define cvxpy variables
+        self.charging_schedule_home_v2g_limited = cp.Variable(self.num_timesteps,)
+        self.charging_schedule_away_v2g_limited = cp.Variable(self.num_timesteps,)
+        self.charging_schedule_v2g_limited = cp.Variable(self.num_timesteps,)
+        self.soc_v2g_limited = cp.Variable(self.num_timesteps+1,)
+        self.grid_discharge_v2g_limited  = cp.Variable(self.num_timesteps,)
+
+        #define power and degradation cost variables    
+        self.power_v2g_limited = (self.soc_v2g_limited[:-1] - self.soc_v2g_limited[1:])/ 100 *self.battcap / self.timestep_opt
+        self.cyclic_v2g_limited, self.calendar_v2g_limited, self.batt_deg_cost_v2g_limited = self.batt_cost_vec(self.power_v2g_limited, self.soc_v2g_limited)
+        
+        #set the charging cost depending on whether ELRP is enabled or not
+        if self.elrp:
+            charging_cost_home = (self.charging_schedule_home_v2g_limited/self.eta - self.grid_discharge_v2g_limited  * self.eta - self.uncontrolled_power_home / self.eta) @ (self.price_week_elrp * self.timestep_opt)
+            charging_cost_home += (self.uncontrolled_power_home / self.eta) @ (self.tou_price_week * self.timestep_opt)
+        else: 
+            charging_cost_home = ((self.charging_schedule_home_v2g_limited-self.grid_discharge_v2g_limited - self.uncontrolled_power_home) / self.eta) @ (self.price_week * self.timestep_opt)
+            charging_cost_home += (self.uncontrolled_power_home / self.eta) @ (self.tou_price_week * self.timestep_opt)
+        charging_cost_away = (self.charging_schedule_away_v2g_limited / self.eta) @ (self.public_chg_price_week * self.timestep_opt)
+
+        #set the objective function (in units of $)
+        self.obj_v2g_limited = charging_cost_home + charging_cost_away + cp.sum(self.batt_deg_cost_v2g_limited) + 0.0005 * cp.sum_squares(self.power_v2g_limited)
+        
+        self.charging_costs_v2g_limited = charging_cost_home + charging_cost_away
+        #define constraints
+        constraints = []
+
+        #charging schedule constraints    
+        constraints += [self.charging_schedule_home_v2g_limited >= 0]
+        constraints += [self.charging_schedule_v2g_limited == self.charging_schedule_home_v2g_limited + self.charging_schedule_away_v2g_limited]
+        constraints += [self.charging_schedule_away_v2g_limited >= 0]
+        constraints += [self.charging_schedule_v2g_limited >= 0]
+        constraints += [self.charging_schedule_home_v2g_limited <= self.home * self.v2g_max / self.eta]  
+        constraints += [self.charging_schedule_away_v2g_limited <= (self.max_power_away)/self.eta] #accounting for inefficiency 
+
+        #SOC constraints
+        constraints += [self.soc_v2g_limited[0]==self.soc_v2g_limited[-1]]
+        constraints += [self.soc_v2g_limited >= 0, self.soc_v2g_limited <= 100]
+        constraints += [self.soc_v2g_limited[1:] == self.soc_v2g_limited[:-1] + 100*(1/self.battcap)*self.timestep_opt*self.charging_schedule_v2g_limited  - 100*(1/self.battcap)*self.timestep_opt*self.grid_discharge_v2g_limited+ self.data_week_driving_soc_change]
+                
+        #energy export constraints
+        constraints += [self.grid_discharge_v2g_limited >= 0]
+        constraints += [self.grid_discharge_v2g_limited <= 12]
+        constraints += [self.grid_discharge_v2g_limited <= self.v2g_max *self.home * self.eta]    
+
+        #set up the problem
+        self.prob_v2g_limited = cp.Problem(cp.Minimize(self.obj_v2g_limited), constraints)
         
         return
 
